@@ -11,11 +11,11 @@ type PodsInformerFactory struct {
 	Queue workqueue.RateLimitingInterface
 }
 
-func (i PodsInformerFactory) New(cli *kubernetes.Clientset, namespace string, labelSelector string) cache.SharedIndexInformer {
+func (i PodsInformerFactory) New(cli *kubernetes.Clientset, namespace string, labelSelectors map[string]string) cache.SharedIndexInformer {
 	watcher := PodsWatcherFactory{
 		Client:    cli,
 		Namespace: namespace,
-		Label:     labelSelector,
+		Selectors: labelSelectors,
 	}.New()
 
 	informer := cache.NewSharedIndexInformer(&watcher, &v1.Pod{}, 0, nil)

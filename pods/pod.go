@@ -1,4 +1,4 @@
-package pod
+package pods
 
 import (
 	"context"
@@ -17,7 +17,7 @@ func NewPodFunc(cli *kubernetes.Clientset, namespace string, selectors map[strin
 	return func(object interface{}) (Pod, error) {
 		podObject, isPod := object.(*v1.Pod)
 		if !isPod {
-			return Pod{}, fmt.Errorf("object is not a kubernetes pod")
+			return Pod{}, fmt.Errorf("object is not a kubernetes pods")
 		}
 
 		return Pod{
