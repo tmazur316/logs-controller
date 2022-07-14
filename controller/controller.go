@@ -1,13 +1,23 @@
 package controller
 
 import (
+	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"log"
 	"logs-controller/informer"
 	"logs-controller/pods"
+	"os"
+	"time"
 )
+
+var log = &logrus.Logger{
+	Out:          os.Stderr,
+	Formatter:    new(logrus.TextFormatter),
+	Level:        logrus.DebugLevel,
+	ReportCaller: true,
+}
 
 type Controller struct {
 	queue    workqueue.RateLimitingInterface
@@ -38,34 +48,40 @@ func (c *Controller) Run() {
 	cacheSynced := cache.WaitForCacheSync(stopChan)
 	if !cacheSynced {
 		close(stopChan)
-		log.Println("cache was not synced")
+		log.Error("cache was not synced")
 		return
 	}
 
 	defer c.queue.ShutDown()
 
-	c.reconcile()
+	wait.Until(c.reconcile, time.Second, stopChan)
 }
 
 func (c *Controller) reconcile() {
-	for {
-		key, shutdown := c.queue.Get()
-		if shutdown {
-			continue
-		}
-
-		err := c.handleKey(key)
-
-		if err == nil {
-			c.queue.Forget(key)
-		} else if c.queue.NumRequeues(key) < 5 {
-			c.queue.AddRateLimited(key)
-		} else {
-			c.queue.Forget(key)
-		}
-
-		c.queue.Done(key)
+	for c.processKey() {
 	}
+}
+
+func (c *Controller) processKey() bool {
+	key, shutdown := c.queue.Get()
+	if shutdown {
+		return false
+	}
+
+	err := c.handleKey(key)
+
+	if err == nil {
+		c.queue.Forget(key)
+	} else if c.queue.NumRequeues(key) < 5 {
+		c.queue.AddRateLimited(key)
+		return true
+	} else {
+		c.queue.Forget(key)
+	}
+
+	c.queue.Done(key)
+
+	return true
 }
 
 func (c *Controller) handleKey(key interface{}) error {
@@ -75,15 +91,21 @@ func (c *Controller) handleKey(key interface{}) error {
 	}
 
 	if !exists {
-		log.Println("deleted event")
+		log.Debug("deleted event")
 		return nil
 	}
 
 	pod, err := c.newPod(object)
+	if err != nil {
+		log.WithField("pod", pod.Name()).WithError(err).Error("failed to retrieve pod")
+		return err
+	}
+
 	if pod.IsNotBeingDeleted() {
-		if pod.FinalizerIsNotPresent() {
+		if !pod.FinalizerIsSet() {
 			err := pod.SetFinalizer()
 			if err != nil {
+				log.WithField("pod", pod.Name()).WithError(err).Error("failed to set finalizer")
 				return err
 			}
 		}
@@ -91,8 +113,16 @@ func (c *Controller) handleKey(key interface{}) error {
 		return nil
 	}
 
-	if err := pod.RemoveFinalizer(); err != nil {
-		return err
+	if pod.FinalizerIsSet() {
+		if err := pod.CopyLogs(); err != nil {
+			log.WithField("pod", pod.Name()).WithError(err).Errorf("failed to copy logs")
+			return err
+		}
+
+		if err := pod.RemoveFinalizer(); err != nil {
+			log.WithField("pod", pod.Name()).WithError(err).Errorf("failed to remove finalizer")
+			return err
+		}
 	}
 
 	return nil
