@@ -42,8 +42,6 @@ spec:
       control-plane: controller-logs
   template:
     metadata:
-      annotations:
-        kubectl.kubernetes.io/default-container: logs-controller
       labels:
         control-plane: controller-logs
     spec:
@@ -52,7 +50,7 @@ spec:
       serviceAccountName: logs-controller-account
       containers:
         - name: controller
-          image: tmazur316/logs-controller:1.1
+          image: tmazur316/logs-controller:1.0
           imagePullPolicy: Never
           volumeMounts:
             - mountPath: /var/log/

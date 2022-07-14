@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"logs-controller/collection"
 	"os"
 	"path/filepath"
@@ -19,7 +20,7 @@ const finalizer = "operator.logs/finalizer"
 var log = &logrus.Logger{
 	Out:          os.Stderr,
 	Formatter:    new(logrus.TextFormatter),
-	Level:        logrus.DebugLevel,
+	Level:        logrus.InfoLevel,
 	ReportCaller: true,
 }
 
@@ -63,24 +64,50 @@ func (p *Pod) Finalizers() []string {
 }
 
 func (p *Pod) SetFinalizer() error {
-	newPod := p.pod.DeepCopy()
-	newPod.Finalizers = append(newPod.Finalizers, finalizer)
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pod, err := p.client.CoreV1().Pods(p.namespace).Get(context.Background(), p.Name(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
 
-	log.WithField("pod", p.pod.Name).Info("finalizer added")
+		newPod := pod.DeepCopy()
+		newPod.Finalizers = append(newPod.Finalizers, finalizer)
 
-	_, err := p.client.CoreV1().Pods(p.namespace).Update(context.Background(), newPod, metav1.UpdateOptions{})
+		_, err = p.client.CoreV1().Pods(p.namespace).Update(context.Background(), newPod, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return err
 	}
+
+	log.WithField("pod", p.pod.Name).Info("finalizer added")
 
 	return nil
 }
 
 func (p *Pod) RemoveFinalizer() error {
-	newPod := p.pod.DeepCopy()
-	newPod.SetFinalizers(collection.Remove(newPod.GetFinalizers(), finalizer))
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pod, err := p.client.CoreV1().Pods(p.namespace).Get(context.Background(), p.Name(), metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
 
-	_, err := p.client.CoreV1().Pods(p.namespace).Update(context.Background(), newPod, metav1.UpdateOptions{})
+		newPod := pod.DeepCopy()
+		newPod.SetFinalizers(collection.Remove(newPod.GetFinalizers(), finalizer))
+
+		_, err = p.client.CoreV1().Pods(p.namespace).Update(context.Background(), newPod, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		return err
 	}
@@ -106,6 +133,7 @@ func (p *Pod) CopyLogs() error {
 
 	log.WithField("pod", p.Name()).WithField("logs", string(logs)).Debug("logs read")
 
+	// todo insert '/' to path
 	destPath := fmt.Sprintf("var/log/copy/%s/copy", p.pod.Name)
 	if err := saveLogs(destPath, logs); err != nil {
 		log.WithError(err).Error("failed to save logs")
