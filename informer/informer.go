@@ -38,15 +38,17 @@ func (i PodsInformerFactory) addFunc(obj interface{}) {
 }
 
 func (i PodsInformerFactory) updateFunc(oldObj, newObj interface{}) {
-	oldKey, err := cache.MetaNamespaceKeyFunc(oldObj)
-	if err != nil {
+	oldPod := oldObj.(*v1.Pod)
+	newPod := newObj.(*v1.Pod)
+	if oldPod.ResourceVersion == newPod.ResourceVersion {
 		return
 	}
+
 	newKey, err := cache.MetaNamespaceKeyFunc(newObj)
 	if err != nil {
 		return
 	}
-	i.Queue.Add(oldKey)
+
 	i.Queue.Add(newKey)
 }
 
@@ -55,5 +57,6 @@ func (i PodsInformerFactory) deleteFunc(obj interface{}) {
 	if err != nil {
 		return
 	}
+
 	i.Queue.Add(key)
 }

@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logs-controller-account
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: logs-controller-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "watch", "list", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: logs-controller-binding
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: logs-controller-account
+    namespace: default
+roleRef:
+  kind: Role
+  name: logs-controller-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logs-controller
+  namespace: default
+  labels:
+    control-plane: controller-logs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-logs
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: logs-controller
+      labels:
+        control-plane: controller-logs
+    spec:
+      securityContext:
+        runAsNonRoot: false
+      serviceAccountName: logs-controller-account
+      containers:
+        - name: controller
+          image: tmazur316/logs-controller:1.1
+          imagePullPolicy: Never
+          volumeMounts:
+            - mountPath: /var/log/
+              name: logs-volume
+            - mountPath: /var/lib/docker/containers
+              name: docker
+      volumes:
+        - name: logs-volume
+          hostPath:
+            path: "/var/log/"
+        - name: docker
+          hostPath:
+            path: "/var/lib/docker/containers"
