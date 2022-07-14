@@ -15,7 +15,7 @@ import (
 var log = &logrus.Logger{
 	Out:          os.Stderr,
 	Formatter:    new(logrus.TextFormatter),
-	Level:        logrus.DebugLevel,
+	Level:        logrus.InfoLevel,
 	ReportCaller: true,
 }
 
@@ -72,7 +72,7 @@ func (c *Controller) processKey() bool {
 
 	if err == nil {
 		c.queue.Forget(key)
-	} else if c.queue.NumRequeues(key) < 5 {
+	} else if c.queue.NumRequeues(key) < 25 {
 		c.queue.AddRateLimited(key)
 		return true
 	} else {
@@ -103,8 +103,7 @@ func (c *Controller) handleKey(key interface{}) error {
 
 	if pod.IsNotBeingDeleted() {
 		if !pod.FinalizerIsSet() {
-			err := pod.SetFinalizer()
-			if err != nil {
+			if err := pod.SetFinalizer(); err != nil {
 				log.WithField("pod", pod.Name()).WithError(err).Error("failed to set finalizer")
 				return err
 			}
