@@ -3,6 +3,9 @@ package pods
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -10,9 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
+
 	"logs-controller/collection"
-	"os"
-	"path/filepath"
 )
 
 const finalizer = "operator.logs/finalizer"
@@ -134,7 +136,7 @@ func (p *Pod) CopyLogs() error {
 	log.WithField("pod", p.Name()).WithField("logs", string(logs)).Debug("logs read")
 
 	// todo insert '/' to path
-	destPath := fmt.Sprintf("var/log/copy/%s/copy", p.pod.Name)
+	destPath := fmt.Sprintf("/var/log/copy/%s/copy", p.pod.Name)
 	if err := saveLogs(destPath, logs); err != nil {
 		log.WithError(err).Error("failed to save logs")
 		return err
@@ -144,7 +146,7 @@ func (p *Pod) CopyLogs() error {
 }
 
 func saveLogs(destination string, logs []byte) error {
-	err := os.MkdirAll(filepath.Dir(destination), 0750)
+	err := os.MkdirAll(filepath.Dir(destination), os.ModePerm)
 	if err != nil && !os.IsExist(err) {
 		log.WithField("destination", destination).WithError(err).Error("failed to create directory for logs copy")
 		return err

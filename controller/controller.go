@@ -1,15 +1,17 @@
 package controller
 
 import (
+	"os"
+	"time"
+
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
 	"logs-controller/informer"
 	"logs-controller/pods"
-	"os"
-	"time"
 )
 
 var log = &logrus.Logger{

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.18-alpine
+FROM golang:1.19-alpine
 
 WORKDIR /go/src/logs-collector
 COPY . /go/src/logs-collector

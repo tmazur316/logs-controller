@@ -51,7 +51,9 @@ spec:
       containers:
         - name: controller
           image: tmazur316/logs-controller:1.0
-          imagePullPolicy: Never
+          command: [ "./logs-controller" ]
+          args: [ "-namespace", "default", "-selectors", "app=manager" ]
+          imagePullPolicy: Always
           volumeMounts:
             - mountPath: /var/log/
               name: logs-volume
