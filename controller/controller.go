@@ -18,7 +18,7 @@ var log = &logrus.Logger{
 	Out:          os.Stderr,
 	Formatter:    new(logrus.TextFormatter),
 	Level:        logrus.InfoLevel,
-	ReportCaller: true,
+	ReportCaller: false,
 }
 
 type Controller struct {

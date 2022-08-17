@@ -16,12 +16,14 @@ var log = &logrus.Logger{
 	Out:          os.Stderr,
 	Formatter:    new(logrus.TextFormatter),
 	Level:        logrus.InfoLevel,
-	ReportCaller: true,
+	ReportCaller: false,
 }
 
 func main() {
 	namespace := flag.String("namespace", "default", "namespace with pods to watch")
-	selectors := flag.String("selectors", "app=manager,app2=manager2", "pod selectors with comma separators, example: key1=value1,key2=value2")
+	selectors := flag.String("selectors", "app=log-rotation", "pod selectors with comma separators, example: key1=value1,key2=value2")
+
+	flag.Parse()
 
 	split := strings.Split(*selectors, ",")
 
@@ -41,6 +43,11 @@ func main() {
 	}
 
 	client := kubernetes.NewForConfigOrDie(runtime.GetConfigOrDie())
+
+	log.WithFields(map[string]interface{}{
+		"namespace": *namespace,
+		"selectors": selectorsMap,
+	}).Info("starting controller")
 
 	ctrl := controller.NewController(client, *namespace, selectorsMap)
 	ctrl.Run()

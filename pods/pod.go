@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/samber/lo"
 	"github.com/sirupsen/logrus"
@@ -23,7 +24,7 @@ var log = &logrus.Logger{
 	Out:          os.Stderr,
 	Formatter:    new(logrus.TextFormatter),
 	Level:        logrus.InfoLevel,
-	ReportCaller: true,
+	ReportCaller: false,
 }
 
 func NewPodFunc(cli *kubernetes.Clientset, namespace string, selectors map[string]string) func(object interface{}) (Pod, error) {
@@ -135,8 +136,8 @@ func (p *Pod) CopyLogs() error {
 
 	log.WithField("pod", p.Name()).WithField("logs", string(logs)).Debug("logs read")
 
-	// todo insert '/' to path
-	destPath := fmt.Sprintf("/var/log/copy/%s/copy", p.pod.Name)
+	now := time.Now().Format("2006_01_02_15_04_05")
+	destPath := fmt.Sprintf("/var/log/copy/%s/copy_%s", p.pod.Name, now)
 	if err := saveLogs(destPath, logs); err != nil {
 		log.WithError(err).Error("failed to save logs")
 		return err
