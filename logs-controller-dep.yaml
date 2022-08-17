@@ -2,12 +2,10 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: logs-controller-account
-  namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
-  namespace: default
   name: logs-controller-role
 rules:
   - apiGroups: [""]
@@ -15,16 +13,15 @@ rules:
     verbs: ["get", "watch", "list", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: logs-controller-binding
-  namespace: default
 subjects:
   - kind: ServiceAccount
     name: logs-controller-account
     namespace: default
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: logs-controller-role
   apiGroup: rbac.authorization.k8s.io
 ---
@@ -50,19 +47,16 @@ spec:
       serviceAccountName: logs-controller-account
       containers:
         - name: controller
-          image: tmazur316/logs-controller:1.0
+          image: tmazur316/logs-controller:2.0
           command: [ "./logs-controller" ]
-          args: [ "-namespace", "default", "-selectors", "app=manager" ]
+          args: [ "-namespace", "consul", "-selectors", "app=consul" ]
           imagePullPolicy: Always
           volumeMounts:
             - mountPath: /var/log/
               name: logs-volume
-            - mountPath: /var/lib/docker/containers
-              name: docker
       volumes:
         - name: logs-volume
           hostPath:
             path: "/var/log/"
-        - name: docker
-          hostPath:
-            path: "/var/lib/docker/containers"
+
+
