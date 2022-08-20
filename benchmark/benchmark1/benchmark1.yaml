@@ -9,8 +9,8 @@ metadata:
   name: logs-controller-role
 rules:
   - apiGroups: [""]
-    resources: ["pods", "pods/log"]
-    verbs: ["get", "watch", "list", "update"]
+    resources: ["pods", "pods/log" ]
+    verbs: ["get", "watch", "list", "update", "create", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -25,38 +25,22 @@ roleRef:
   name: logs-controller-role
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: logs-controller
-  namespace: default
-  labels:
-    control-plane: controller-logs
+  name: controller-benchmark
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      control-plane: controller-logs
   template:
     metadata:
       labels:
-        control-plane: controller-logs
+        app: controller-benchmark
     spec:
+      restartPolicy: Never
       securityContext:
         runAsNonRoot: false
       serviceAccountName: logs-controller-account
       containers:
-        - name: controller
-          image: tmazur316/logs-controller:2.1
-          command: [ "./logs-controller" ]
-          args: [ "-namespace", "default", "-selectors", "app=busy-logger" ]
+        - name: log-rotation
+          image: tmazur316/controller-benchmark:1.0
           imagePullPolicy: Always
-          volumeMounts:
-            - mountPath: /var/log/
-              name: logs-volume
-      volumes:
-        - name: logs-volume
-          hostPath:
-            path: "/var/log/"
-
-
+          command: [ "go", "run", "./benchmark/benchmark1/benchmark1.go" ]
