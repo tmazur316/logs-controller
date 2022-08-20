@@ -21,7 +21,7 @@ var log = &logrus.Logger{
 
 func main() {
 	namespace := flag.String("namespace", "default", "namespace with pods to watch")
-	selectors := flag.String("selectors", "app=log-rotation", "pod selectors with comma separators, example: key1=value1,key2=value2")
+	selectors := flag.String("selectors", "app=busy-logger", "pod selectors with comma separators, example: key1=value1,key2=value2")
 
 	flag.Parse()
 

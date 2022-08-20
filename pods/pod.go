@@ -3,6 +3,7 @@ package pods
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,12 +21,16 @@ import (
 
 const finalizer = "operator.logs/finalizer"
 
-var log = &logrus.Logger{
-	Out:          os.Stderr,
-	Formatter:    new(logrus.TextFormatter),
-	Level:        logrus.InfoLevel,
-	ReportCaller: false,
-}
+var (
+	log = &logrus.Logger{
+		Out:          os.Stderr,
+		Formatter:    new(logrus.TextFormatter),
+		Level:        logrus.InfoLevel,
+		ReportCaller: false,
+	}
+
+	source = rand.NewSource(time.Now().UnixNano())
+)
 
 func NewPodFunc(cli *kubernetes.Clientset, namespace string, selectors map[string]string) func(object interface{}) (Pod, error) {
 	return func(object interface{}) (Pod, error) {
@@ -137,7 +142,7 @@ func (p *Pod) CopyLogs() error {
 	log.WithField("pod", p.Name()).WithField("logs", string(logs)).Debug("logs read")
 
 	now := time.Now().Format("2006_01_02_15_04_05")
-	destPath := fmt.Sprintf("/var/log/copy/%s/copy_%s", p.pod.Name, now)
+	destPath := fmt.Sprintf("/var/log/copy/%s/copy_%s_%d", p.pod.Name, now, source.Int63())
 	if err := saveLogs(destPath, logs); err != nil {
 		log.WithError(err).Error("failed to save logs")
 		return err
